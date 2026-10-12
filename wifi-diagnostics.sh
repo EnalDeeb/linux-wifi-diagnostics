@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Read-only Wi-Fi diagnostics for Debian 12 and Fedora.
+# Wi-Fi diagnostics for Debian 12/13 and Fedora.
+# Installs missing diagnostic utilities on Debian; collection is read-only.
 # Run as your normal user: bash wifi-diagnostics.sh
 
 export LC_ALL=C
@@ -19,6 +20,47 @@ elif command -v sudo >/dev/null 2>&1; then
         printf 'Continuing with available unprivileged journal access.\n'
     fi
 fi
+
+install_dependencies() {
+    local distro_id tool
+    local -a missing=()
+    INSTALL_STATUS='Automatic dependency installation skipped (not Debian).'
+    distro_id=$( . /etc/os-release; printf '%s' "${ID:-}" )
+    [[ $distro_id == debian ]] || return 0
+
+    for tool in lspci ip iw rfkill lsmod; do
+        command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+    done
+    INSTALL_STATUS='All required diagnostic utilities already available.'
+    (( ${#missing[@]} > 0 )) || return 0
+
+    printf 'Missing diagnostic commands: %s\n' "${missing[*]}"
+    printf 'Installing Debian packages: pciutils iproute2 iw rfkill kmod\n'
+    printf 'APT may ask you to confirm installation. Internet access may be required.\n'
+    INSTALL_STATUS='Dependency installation unavailable; collecting with existing tools.'
+    if ! command -v apt >/dev/null 2>&1; then
+        printf 'APT is unavailable. Continuing with existing tools.\n'
+        return 0
+    fi
+    if [[ $JOURNAL_MODE == root ]]; then
+        apt install pciutils iproute2 iw rfkill kmod
+    elif [[ $JOURNAL_MODE == sudo ]]; then
+        sudo apt install pciutils iproute2 iw rfkill kmod
+    else
+        printf 'Administrator access is unavailable. Continuing with existing tools.\n'
+        return 0
+    fi
+    if (( $? == 0 )); then
+        INSTALL_STATUS='APT dependency installation completed successfully.'
+    else
+        INSTALL_STATUS='APT dependency installation failed or was declined; collecting with existing tools.'
+        printf '%s\n' "$INSTALL_STATUS"
+        printf 'If package lists are outdated, run sudo apt update and try again later.\n'
+    fi
+}
+
+# Keep APT output and prompts visible in the terminal.
+install_dependencies
 
 section() { printf '\n=== %s ===\n' "$1"; }
 run() {
@@ -45,6 +87,8 @@ kernel_log() {
     section 'OPERATING SYSTEM'
     cat /etc/os-release
     run uname -r
+    section 'DEPENDENCY SETUP'
+    printf '%s\n' "$INSTALL_STATUS"
 
     # Keep the full PCI listing so a disappearing device or its bridge is visible.
     section 'ALL PCI HARDWARE AND DRIVER BINDINGS'

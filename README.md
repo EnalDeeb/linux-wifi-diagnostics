@@ -1,6 +1,6 @@
 # Linux Wi-Fi Diagnostics
 
-A small Bash script that collects information when Wi-Fi stops working or a wireless adapter disappears. Designed for Debian 12 and Fedora, with no network configuration changes.
+A small Bash script that collects information when Wi-Fi stops working or a wireless adapter disappears. Designed for Debian 12/13 and Fedora, with no network configuration changes. On Debian, it installs missing diagnostic utilities before collecting the report.
 
 It creates a text report for troubleshooting or a manufacturer support request. It does not diagnose a hardware defect automatically.
 
@@ -8,9 +8,9 @@ It creates a text report for troubleshooting or a manufacturer support request. 
 
 - A Linux computer with Bash. Run this on the computer experiencing the problem.
 - A terminal: look for **Terminal** in your applications menu.
-- Optional administrator access to read the complete kernel log. The script asks for your `sudo` password if `sudo` is available.
+- Administrator access to install missing utilities on Debian and read the complete kernel log. The script asks for your `sudo` password if `sudo` is available; without access, it collects whatever information is available.
 
-**Validation:** Bash syntax has been checked. Compatibility was reviewed against Debian 12 documentation; the script has not yet been tested on the affected Debian laptop. Other distributions may work but are not verified.
+**Validation:** Bash syntax and dependency setup behavior have been checked using mocked commands. Compatibility was reviewed against Debian 12 and 13 documentation; actual package installation and collection have not yet been tested on the affected Debian laptop. Other distributions may work but are not verified.
 
 ## 1. Download the script
 
@@ -41,6 +41,8 @@ bash ~/Downloads/wifi-diagnostics.sh
 
 Run it as your normal user. You do not need `chmod +x` or to run the whole script with `sudo`.
 
+On Debian 12/13, the script checks for `lspci`, `ip`, `iw`, `rfkill`, and `lsmod`. If any are missing, it runs `sudo apt install pciutils iproute2 iw rfkill kmod` (or `apt install` when already root). APT may ask whether to proceed: review its proposed changes, type `Y`, and press Enter to install. If all tools are available, installation is skipped. Fedora dependency installation remains manual.
+
 If asked for a `sudo` password, enter your Linux account password. The terminal normally shows no characters while you type. Press Enter when finished. If administrator access is unavailable, the script continues, but its kernel log may be incomplete.
 
 The final message shows the report path, for example:
@@ -55,13 +57,13 @@ Report saved to: /home/yourname/lenovo-wifi-20261012-153000-AbCdEf.txt
 
 The report explicitly labels unavailable commands. This is common on minimal installations.
 
-On **Debian 12**, these packages supply the main diagnostic utilities:
+On **Debian 12/13**, the script attempts this installation automatically when required. You can also run it manually:
 
 ```bash
 sudo apt install pciutils iproute2 iw rfkill kmod
 ```
 
-This command installs packages and changes your system; the diagnostic script itself does not install anything. If package lists are outdated, run `sudo apt update` and retry. If you do not have `sudo` access, ask your system administrator to install the missing utilities.
+Installation changes your system and may need internet access. If it fails or you decline it, the script continues and labels missing commands in the report. If package lists are outdated, run `sudo apt update` and retry. If you do not have `sudo` access, ask your system administrator to install the missing utilities.
 
 The `nmcli` command belongs to NetworkManager. If your system uses another network manager, missing `nmcli` is expected. You do not need to install or switch network managers to use this script.
 
@@ -89,7 +91,7 @@ An adapter missing from PCI enumeration is useful evidence, but it does not by i
 - Loaded kernel modules
 - The complete available kernel log from the current boot
 
-The script reads system information and writes one report in your home folder. It does not restart services, change radio settings, unload drivers, or update firmware. `sudo` is used for kernel log access only.
+The script may install diagnostic packages on Debian, then reads system information and writes one report in your home folder. It issues no commands to restart services, change radio settings, unload drivers, or update firmware. `sudo` is used for dependency installation and kernel log access.
 
 ## Privacy: review before sharing
 
