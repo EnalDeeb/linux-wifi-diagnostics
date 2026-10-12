@@ -1,0 +1,3 @@
+# Diagnostic reports are private evidence, not source files.
+lenovo-wifi-*.txt
+*.log
